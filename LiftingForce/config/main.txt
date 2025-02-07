@@ -1,0 +1,10 @@
+# config file v1
+
+n_x, n_y       = 10 10
+n_v, v_cut     = 11 5.0
+alpha, beta    = 0.4 0.2
+Knudsen, Mach  = 0.5 0.5
+T1, T2         = 1.0 2.0
+real_plate_len = 10.0
+
+debug = 0
