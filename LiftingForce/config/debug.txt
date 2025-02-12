@@ -1,5 +1,6 @@
 # debug mode
 
+n_t            = 100
 n_x, n_y       = 10 10
 n_v, v_cut     = 11 5.0
 alpha, beta    = 0.4 0.2
