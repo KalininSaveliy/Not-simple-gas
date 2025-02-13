@@ -40,7 +40,7 @@ double tau;  // шаг по временной сетке
 // extra value end
 
 
-bool load_config(const std::string& config_name) {
+bool load_config(const std::string& config_name) {  // TODO: problem: can't use '=' in config
     bool isLoaded = true;
     std::string full_cfg = "config/" + config_name + ".txt";
     std::ifstream fin;
@@ -90,14 +90,14 @@ bool load_config(const std::string& config_name) {
                     << h << ' ' << dv << ' ' << n_time << '\n';
         }
     } else {
-        std::cout << "Error: Can not open config file with name: " << full_cfg << '\n';
+        std::cout << "Error: Can not open config file with name: \'" << full_cfg << "\'\n";
         isLoaded = false;
     }
     fin.close();
     return isLoaded;
 }
 
-double coord(int i) {
+double coord(int i) {  // TODO: make coord_x and coord_y
     return (i - plate_beg_i) * h;
 }
 double speed(int i) {
@@ -171,7 +171,7 @@ void save(double* f, std::string& filename, bool saveAll=false) {
             }
         }
     } else {
-        std::cout << "Error: Could not save distribution to file " << filename << '\n';
+        std::cout << "Error: Could not save distribution to file '" << filename << "'\n";
     }
     fout.close();
 }
@@ -212,7 +212,7 @@ void make_iteration_y(double* f_old, double* f_new) {
                     }
                 } else {
                     for (int j = 0; j < n_y; ++j) {
-                        f_new[idx(i, j, ii, jj)] = f_old[idx(i, j, ii, jj)] - g * (f_old[idx(i, j-1, ii, jj)] -
+                        f_new[idx(i, j, ii, jj)] = f_old[idx(i, j, ii, jj)] - g * (f_old[idx(i, j+1, ii, jj)] -
                                                                                    f_old[idx(i, j, ii, jj)]);
                     }
                 }
@@ -243,11 +243,11 @@ int main(int argc, char** argv) {  // TODO: create dir to save file;
     double* distribution      = new double[n_x * n_y * n_v * n_v];
     initDistribution(distribution);
 
-    std::string folder = "data/" + config_name + '/';
+    std::string folder = ".\\data\\" + config_name + '\\';
     std::string file = folder + "0";  // TODO: maybe should add name of file to config
     save(distribution, file, isDebug);  // TODO: add time to save function
 
-    for (int t = 1; t < n_time; ++t) {
+    for (int t = 1; t <= n_time; ++t) {
         make_iteration(prev_distribution, distribution);
         if (t % 10 == 0) {  // TODO: maybe should add 10 to config
             file = folder + std::to_string(t);

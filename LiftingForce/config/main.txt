@@ -2,7 +2,7 @@
 
 n_t            = 100
 n_x, n_y       = 10 10
-n_v, v_cut     = 11 5.0  # (n_v div 2) / v_cut <= 1
+n_v, v_cut     = 11 5.0  # (n_v div 2) / v_cut \lessEqual 1
 alpha, beta    = 0.4 0.2
 Knudsen, Mach  = 0.5 0.5
 T1, T2         = 1.0 2.0
