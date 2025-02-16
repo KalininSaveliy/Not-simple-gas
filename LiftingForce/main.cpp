@@ -33,7 +33,7 @@ double real_plate_len;  // длина пластины в метрах
 
 // extra value
 int plate_beg_i, plate_end_i;  // исключая конец
-int plate_y;  // координата пластины по Y
+int plate_j;  // координата пластины по Y
 double h;  // шаг по координатной сетке
 double dv;  // шаг по скоростной сетке
 double tau;  // шаг по временной сетке
@@ -78,7 +78,7 @@ bool load_config(const std::string& config_name) {  // TODO: problem: can't use 
 
         plate_beg_i = n_alpha;
         plate_end_i = n_alpha + n_beta;
-        plate_y = n_y / 2;
+        plate_j = n_y / 2;
         h = plate_len / n_beta;
         dv = v_cut / (n_v / 2);
         tau = h / v_cut;
@@ -97,8 +97,11 @@ bool load_config(const std::string& config_name) {  // TODO: problem: can't use 
     return isLoaded;
 }
 
-double coord(int i) {  // TODO: make coord_x and coord_y
+double coord_x(int i) {
     return (i - plate_beg_i) * h;
+}
+double coord_y(int j) {
+    return (j - plate_j) * h;
 }
 double speed(int i) {
     return (i - n_v / 2) * dv;
@@ -153,9 +156,9 @@ void save(double* f, std::string& filename, bool saveAll=false) {
         }
         double x, y, n, sum;
         for (int i = 0; i < n_x; ++i) {
-            x = coord(i);
+            x = coord_x(i);
             for (int j = 0; j < n_y; ++j) {
-                y = coord(j);
+                y = coord_y(j);
                 sum = 0.0;
                 fout << x << ',' << y;
                 saveAll ? (fout << '\n') : (fout << ',');
@@ -169,6 +172,7 @@ void save(double* f, std::string& filename, bool saveAll=false) {
                 }
                 fout << sum * dv * dv << '\n';  // \int f(vx, vy) dvx dvy
             }
+            if (!saveAll) {fout << '\n';}
         }
     } else {
         std::cout << "Error: Could not save distribution to file '" << filename << "'\n";
@@ -182,14 +186,15 @@ void make_iteration_x(double* f_old, double* f_new) {
         g = speed(ii) * tau / h;
         for (int jj = 0; jj < n_v; ++jj) {
             for (int j = 0; j < n_y; ++j) {
+                f_new[idx(0, j, ii, jj)] = f_old[idx(0, j, ii, jj)];  // const value
                 if (g > 0) {
-                    f_new[idx(0, j, ii, jj)] = f_old[idx(0, j, ii, jj)];  // const value
                     for (int i = 1; i < n_x; ++i) {
                         f_new[idx(i, j, ii, jj)] = f_old[idx(i, j, ii, jj)] - g * (f_old[idx(i,   j, ii, jj)] -
                                                                                    f_old[idx(i-1, j, ii, jj)]);
                     }
                 } else {
-                    for (int i = 0; i < n_x - 1; ++i) {
+                    f_new[idx(n_x - 1, j, ii, jj)] = f_old[idx(n_x - 1, j, ii, jj)];
+                    for (int i = 1; i < n_x - 1; ++i) {
                         f_new[idx(i, j, ii, jj)] = f_old[idx(i, j, ii, jj)] - g * (f_old[idx(i+1, j, ii, jj)] -
                                                                                    f_old[idx(i,   j, ii, jj)]);
                     }
@@ -204,14 +209,19 @@ void make_iteration_y(double* f_old, double* f_new) {
     for (int jj = 0; jj < n_v; ++jj) {
         g = speed(jj) * tau / h;
         for (int ii = 0; ii < n_v; ++ii) {
-            for (int i = 0; i < n_x; ++i) {
+            for (int j = 0; j < n_y - 1; ++j) {
+                f_new[idx(0, j, ii, jj)] = f_old[idx(0, j, ii, jj)];  // const value
+            }
+            for (int i = 1; i < n_x; ++i) {
                 if (g > 0) {
+                    f_new[idx(i, 0, ii, jj)] = f_old[idx(i, 0, ii, jj)];
                     for (int j = 1; j < n_y; ++j) {
                         f_new[idx(i, j, ii, jj)] = f_old[idx(i, j, ii, jj)] - g * (f_old[idx(i, j,   ii, jj)] -
                                                                                    f_old[idx(i, j-1, ii, jj)]);
                     }
                 } else {
-                    for (int j = 0; j < n_y; ++j) {
+                    f_new[idx(i, n_y - 1, ii, jj)] = f_old[idx(i, n_y - 1, ii, jj)];
+                    for (int j = 0; j < n_y - 1; ++j) {
                         f_new[idx(i, j, ii, jj)] = f_old[idx(i, j, ii, jj)] - g * (f_old[idx(i, j+1, ii, jj)] -
                                                                                    f_old[idx(i, j, ii, jj)]);
                     }
@@ -228,18 +238,11 @@ void make_iteration(double* f_old, double* f_new) {
     make_iteration_y(f_old, f_new);
 }
 
-int main(int argc, char** argv) {  // TODO: create dir to save file;
-    std::string config_name;
-    if (argc < 2) {
-        std::cout << "Sorry, you forgot add config file\n";
-        return 0;
-    } else {
-        config_name = argv[1];
-    }
+bool make_simulation(std::string& config_name) {
     if (!load_config(config_name))
-        return 0;
+        return false;
 
-    double* prev_distribution = new double[n_x * n_y * n_v * n_v];
+    double* new_distribution = new double[n_x * n_y * n_v * n_v];
     double* distribution      = new double[n_x * n_y * n_v * n_v];
     initDistribution(distribution);
 
@@ -248,13 +251,30 @@ int main(int argc, char** argv) {  // TODO: create dir to save file;
     save(distribution, file, isDebug);  // TODO: add time to save function
 
     for (int t = 1; t <= n_time; ++t) {
-        make_iteration(prev_distribution, distribution);
+        make_iteration(distribution, new_distribution);
         if (t % 10 == 0) {  // TODO: maybe should add 10 to config
             file = folder + std::to_string(t);
-            save(distribution, file, isDebug);
+            save(new_distribution, file, isDebug);
             std::cout << "Iter " << t << " / " << n_time << " was done.\n";
         }
-        std::swap(prev_distribution, distribution);
+        std::swap(distribution, new_distribution);
+    }
+    return true;
+}
+
+int main(int argc, char** argv) {  // TODO: create dir to save file;
+    std::string config_name;
+    if (argc < 2) {
+        std::cout << "Sorry, you forgot add config file\n";
+        return 0;
+    } else {
+        config_name = argv[1];
+    }
+
+    if (make_simulation(config_name)) {
+        std::cout << "Simulation " << config_name << " was done\n";
+    } else {
+        std::cout << "Error: Simultaion " << config_name << " end with false\n";
     }
 
     return 0;
