@@ -1,8 +1,13 @@
+# Чтение данных из файла
+data = system("type data.txt")
+x = int(word(data, 1))
+y = real(word(data, 2))
+
 count = 100
 step = 10
 max_z = 1.2
 
-plate_len = 2  # TODO: make it variable from main
+plate_len = 1.4  # TODO: make it variable from main
 # add plate to graph
 set arrow from 0,0 to plate_len,0 nohead front lc rgb "black" lw 4  dashtype "-"
 
@@ -23,6 +28,8 @@ set key center tmargin
 
 do for [n = 0 : count : step] {
     filename = sprintf("data/main/%d.csv", n)
-    plot filename with image title sprintf("Sorry %d", n)
+    title_str = sprintf("Sorry %d %d %.2f", n, x, y)
+    plot filename with image title title_str
 }
+
 set output

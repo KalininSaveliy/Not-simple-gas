@@ -1,6 +1,7 @@
 #include <cmath>
 #include <string>
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 
 // #define _USE_MATH_DEFINES  // to get PI value
@@ -10,6 +11,7 @@
 bool isDebug;
 
 int n_time;      // число итераций по времени
+int save_time;   // период сохранений
 int n_x, n_y;    // размер секти по координате
 int n_v;         // размер сетки по скоростям
 double Knudsen;  // число Кнудсена
@@ -47,12 +49,12 @@ double tau;  // шаг по временной сетке
 double denom_up, denom_down;  // denominator(T)
 // extra value end
 
-
-double coord_x(int i) {
-    return (i - plate_beg_i + 0.5) * h;
+// return coord x in metre
+double real_x(int i) {
+    return (i - plate_beg_i + 0.5) * h * Knudsen * real_plate_len;
 }
-double coord_y(int j) {
-    return (j - plate_j + 0.5) * h;
+double real_y(int j) {
+    return (j - plate_j + 0.5) * h * Knudsen * real_plate_len;
 }
 double speed(int i) {
     return (i - n_v / 2) * dv;
@@ -182,12 +184,12 @@ bool load_config(const std::string& config_name) {  // TODO: problem: can't use 
     std::ifstream fin;
     fin.open(full_cfg);
     if (fin.is_open()) {
-        std::cout << "config: " << full_cfg << '\n';
+        std::cout << "config: " << std::quoted(full_cfg) << '\n';
         std::string line;
         char delim = '=';
 
         std::getline(fin, line, delim);
-        fin >> n_time;
+        fin >> n_time >> save_time;
         std::getline(fin, line, delim);
         fin >> n_x >> n_y;
         std::getline(fin, line, delim);
@@ -258,9 +260,9 @@ void save(double* f, std::string& filename, bool saveAll=false) {
         }
         double x, y, n, sum;
         for (int i = 0; i < n_x; ++i) {
-            x = coord_x(i);
+            x = real_x(i);
             for (int j = 0; j < n_y; ++j) {
-                y = coord_y(j);
+                y = real_y(j);
                 sum = 0.0;
                 // TODO: debug should return i and j, not x, y
                 fout << x << ',' << y;
@@ -278,7 +280,7 @@ void save(double* f, std::string& filename, bool saveAll=false) {
             if (!saveAll) {fout << '\n';}
         }
     } else {
-        std::cout << "Error: Could not save distribution to file '" << filename << "'\n";
+        std::cout << "Error: Could not save distribution to file " << std::quoted(filename) << "\n";
     }
     fout.close();
 }
@@ -295,12 +297,12 @@ bool make_simulation(std::string& config_name) {
     std::string file = folder + "0";  // TODO: maybe should add name of file to config
     save(distribution, file, isDebug);  // TODO: add time to save function
 
-    for (int t = 1; t <= n_time; ++t) {
+    for (int t_i = 1; t_i <= n_time; ++t_i) {
         make_iteration(distribution, new_distribution);
-        if (t % 10 == 0) {  // TODO: maybe should add 10 to config
-            file = folder + std::to_string(t);
+        if (t_i % save_time == 0) {
+            file = folder + std::to_string(t_i);
             save(new_distribution, file, isDebug);
-            std::cout << "Iter " << t << " / " << n_time << " was done.\n";
+            std::cout << "Iter " << t_i << " / " << n_time << " was done.\n";
         }
         std::swap(distribution, new_distribution);
     }
@@ -308,19 +310,17 @@ bool make_simulation(std::string& config_name) {
 }
 
 
-int main(int argc, char** argv) {  // TODO: create dir to save file;
-    std::string config_name;
+int main(int argc, char** argv) {  // TODO: create dir to save file
     if (argc < 2) {
         std::cout << "Sorry, you forgot add config file\n";
         return 0;
-    } else {
-        config_name = argv[1];
     }
+    std::string config_name = argv[1];
 
     if (make_simulation(config_name)) {
-        std::cout << "Simulation " << config_name << " was done\n";
+        std::cout << "Simulation " << std::quoted(config_name)<< " was done\n";
     } else {
-        std::cout << "Error: Simultaion " << config_name << " end with false\n";
+        std::cout << "Error: Simultaion " << std::quoted(config_name) << " end with false\n";
     }
 
     return 0;
