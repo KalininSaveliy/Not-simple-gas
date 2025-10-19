@@ -1,14 +1,17 @@
+#define _USE_MATH_DEFINES  // to get PI value
 #include <cmath>
 #include <string>
+#include <vector>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+// #include <filesystem>
 
-// #define _USE_MATH_DEFINES  // to get PI value
 
 
 // config value
 bool isDebug;
+std::string save_folder;
 
 int n_time;      // число итераций по времени
 int save_time;   // период сохранений
@@ -178,64 +181,78 @@ void make_iteration(double* f_old, double* f_new) {
 }
 
 
-bool load_config(const std::string& config_name) {  // TODO: problem: can't use '=' in config
-    bool isLoaded = true;
-    std::string full_cfg = "config/" + config_name + ".txt";
+bool load_config(const std::string& config_name) {
+    bool isLoaded = false;
     std::ifstream fin;
-    fin.open(full_cfg);
+    fin.open(config_name);
     if (fin.is_open()) {
-        std::cout << "config: " << std::quoted(full_cfg) << '\n';
-        std::string line;
-        char delim = '=';
-
-        std::getline(fin, line, delim);
-        fin >> n_time >> save_time;
-        std::getline(fin, line, delim);
-        fin >> n_x >> n_y;
-        std::getline(fin, line, delim);
-        fin >> n_v >> v_cut;
-        if (n_v % 2 == 0)
-            n_v++;
-        std::getline(fin, line, delim);
-        fin >> alpha >> beta;
-        std::getline(fin, line, delim);
-        fin >> Knudsen >> Mach;
-        std::getline(fin, line, delim);
-        fin >> T1 >> T2;
-        std::getline(fin, line, delim);
-        fin >> real_plate_len;
-
-        std::getline(fin, line, delim);
-        fin >> isDebug;
+        fin >> n_time
+            >> save_time
+            >> n_x
+            >> n_y
+            >> n_v
+            >> v_cut
+            >> alpha
+            >> beta
+            >> Knudsen
+            >> Mach
+            >> T1
+            >> T2
+            >> real_plate_len
+            >> isDebug
+            >> save_folder;
 
         double plate_len = 1 / Knudsen;  // длина пластины в длинах свободного пробега
         // TODO: add check for alpha, beta, n_x value
         int n_alpha = std::floor(n_x * alpha);  // целое число ячеек сетки для области до пластины
-        int n_beta = std::floor(n_x * beta);    // целое число ячеек сетки для пластины
+        int n_beta  = std::floor(n_x * beta);    // целое число ячеек сетки для пластины
         // int n_gamma = n_x - n_alpha - n_beta;   // целое число ячеек сетки для области после пластины
 
         plate_beg_i = n_alpha;
         plate_end_i = n_alpha + n_beta;
-        plate_j = n_y / 2;
-        h = plate_len / n_beta;
-        dv = v_cut / (n_v / 2);
-        tau = h / v_cut;
-        denom_up = denominator(T1);
-        denom_down = denominator(T2);
+        plate_j     = n_y / 2;
+        h           = plate_len / n_beta;
+        dv          = v_cut / (n_v / 2);
+        tau         = h / v_cut;
+        denom_up    = denominator(T1);
+        denom_down  = denominator(T2);
 
         if (isDebug) {
-            std::cout << n_x << ' ' << n_y << '\n' << n_v << ' ' << v_cut << '\n'
-                    << alpha << ' ' << beta << '\n' << Knudsen << ' ' << Mach << '\n'
-                    << T1 << ' ' << T2 << ' ' << real_plate_len << '\n'
-                    << plate_beg_i << ' ' << plate_end_i << ' ' << plate_j << '\n'
-                    << h << ' ' << dv << ' ' << n_time << '\n';
+            std::cout
+                << n_x << ' ' << n_y << '\n' << n_v << ' ' << v_cut << '\n'
+                << alpha << ' ' << beta << '\n' << Knudsen << ' ' << Mach << '\n'
+                << T1 << ' ' << T2 << ' ' << real_plate_len << '\n'
+                << plate_beg_i << ' ' << plate_end_i << ' ' << plate_j << '\n'
+                << h << ' ' << dv << ' ' << n_time << '\n';
         }
+        isLoaded = true;
+        fin.close();
     } else {
-        std::cout << "Error: Can not open config file with name: \'" << full_cfg << "\'\n";
-        isLoaded = false;
+        std::cout << "Error: Can not open config file with name: " << std::quoted(config_name) << '\n';
     }
-    fin.close();
     return isLoaded;
+}
+
+bool save_grid(const std::string& folder) {
+    bool isSaved = false;
+    std::ofstream fout(folder + "grid.csv");
+    // std::ofstream fout(folder + "grid.csv", std::ios::out | std::ios::trunc);
+    if (fout.is_open()) {
+        fout << "x,y\n";
+        int n = std::max(n_x, n_y);
+        for (int i = 0; i < n; ++i) {
+            if (i < n_x) {fout << real_x(i);}
+            // (i < n_x) ? (fout << real_x(i)) : (fout << " ");
+            fout << ',';
+            if (i < n_y) {fout << real_y(i);}
+            fout << '\n';
+        }
+        fout.close();
+        isSaved = true;
+    } else {
+        std::cout << "Error: can't open file to save grid << \n";
+    }
+    return isSaved;
 }
 
 /** @brief Save distribuiton f(x, y, vx, vy) to file
@@ -255,18 +272,12 @@ void save(double* f, std::string& filename, bool saveAll=false) {
             fout << "# sum(f(vx,vy)) for each (x, y) point in relative units\n";
             fout << "# next line is the concentration n = sum of f(vx, vy) in point (x,y)\n";
             fout << n_v << ' ' << dv << ' ' << v_cut << "  # n_v, dv and max_velocity\n\n";
-        } else {
-            fout << "# x,y,sum(f(vx | vy)) in relative units\n";
         }
-        double x, y, n, sum;
-        for (int i = 0; i < n_x; ++i) {
-            x = real_x(i);
-            for (int j = 0; j < n_y; ++j) {
-                y = real_y(j);
+        double n, sum;
+        for (int j = 0; j < n_y; ++j) {
+            for (int i = 0; i < n_x; ++i) {
                 sum = 0.0;
-                // TODO: debug should return i and j, not x, y
-                fout << x << ',' << y;
-                saveAll ? (fout << '\n') : (fout << ',');
+                if (saveAll) {fout << '\n';}
                 for (int ii = 0; ii < n_v; ++ii) {
                     for (int jj = 0; jj < n_v; ++jj) {
                         n = f[idx(i, j, ii, jj)];
@@ -275,7 +286,8 @@ void save(double* f, std::string& filename, bool saveAll=false) {
                     }
                     if (saveAll) {fout << '\n';}
                 }
-                fout << sum * dv * dv << '\n';  // \int f(vx, vy) dvx dvy
+                fout << sum * dv * dv;  // \int f(vx, vy) dvx dvy
+                if (i != n_x - 1) {fout << ',';}
             }
             if (!saveAll) {fout << '\n';}
         }
@@ -289,11 +301,15 @@ bool make_simulation(std::string& config_name) {
     if (!load_config(config_name))
         return false;
 
+    std::string folder = "./data/" + save_folder + '/';
+    // std::filesystem::create_directories(folder);
+    if (!save_grid(folder))
+        return false;
+    
     double* new_distribution = new double[n_x * n_y * n_v * n_v];
-    double* distribution      = new double[n_x * n_y * n_v * n_v];
+    double* distribution     = new double[n_x * n_y * n_v * n_v];
     initDistribution(distribution);
 
-    std::string folder = ".\\data\\" + config_name + '\\';
     std::string file = folder + "0";  // TODO: maybe should add name of file to config
     save(distribution, file, isDebug);  // TODO: add time to save function
 

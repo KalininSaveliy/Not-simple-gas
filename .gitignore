@@ -1,4 +1,14 @@
+# C++
 *.exe
 *.o
-.\data\main\*
-.\data\debug\*
+
+# Python
+**/.venv/
+**/__pycache__/
+*.egg-info
+
+# LiftingForce
+LiftingForce/data/main/*
+LiftingForce/data/debug/*
+LiftingForce/**/*_Cpp.txt
+

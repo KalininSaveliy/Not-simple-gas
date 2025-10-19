@@ -1,0 +1,25 @@
+{
+    "n_t" : 130,
+    "s_t" : 5,
+
+    "n_x" : 40,
+    "n_y" : 20,
+
+    "comment_n_v" : "(n_v div 2) / v_cut <= 1",
+    "n_v" : 11,
+    "v_cut" : 5.0,
+
+    "alpha" : 0.4,
+    "beta"  : 0.2,
+
+    "Knudsen" : 0.5,
+    "Mach"  : 0.5,
+    "T1" : 1.0,
+    "T2" : 2.0,
+
+    "comment_real_plate_len" : "metre",
+    "real_plate_len" : 1.4,
+
+    "debug" : false,
+    "save_folder" : "main"
+}
