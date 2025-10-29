@@ -18,7 +18,7 @@ int save_time;   // период сохранений
 int n_x, n_y;    // размер секти по координате
 int n_v;         // размер сетки по скоростям
 double Knudsen;  // число Кнудсена
-double Mach;     // число Маха (v0 / sqrt(kT/m)
+double Mach;     // число Маха (v0 / sqrt(kT/m))
 double T1;       // температура пластины сверху относительная
 double T2;       // температура пластины снизу относительная
 double v_cut;  // максимальная рассматривая скорость
@@ -82,6 +82,7 @@ double denominator(double T) {
 int idx(int x, int y, int vx, int vy) {
     return x + y * n_x + vx * (n_x * n_y) + vy * (n_x * n_y * n_v);
 }
+
 void initDistribution(double* f) {
     double n_0, n_bound;
     for (int ii = 0; ii < n_v; ++ii) {
@@ -152,7 +153,7 @@ void make_iteration_y(double* f_old, double* f_new) {
     // Diffusion reflection
     double nom_up, nom_down;  // up - above plate, down - below plate
     double v_y;
-    for (int i = 0; i < n_x; ++i) {
+    for (int i = plate_beg_i; i < plate_end_i; ++i) {
         for (int ii = 0; ii < n_v; ++ii) {
             nom_down = 0;
             nom_up = 0;

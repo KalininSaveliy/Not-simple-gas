@@ -71,7 +71,9 @@ def update(frame_ind):
     if frame_ind == 0:
         cbar = fig.colorbar(mesh, ax=ax)
         cbar.set_label('Value')
-    ax.set_title(frame_ind * cfg.cfg["s_t"])
+    t = cfg.cfg["real_plate_len"] * cfg.cfg["Knudsen"] / 290  # seconds
+    it = frame_ind * cfg.cfg["s_t"]
+    ax.set_title(str(it) + " (" + str(round(t * it * 1000, 1)) + "ms)")
 
 ani = FuncAnimation(fig=fig, func=update, frames=data.length, interval=1000, repeat=False, init_func=lambda : None)
 ani.save("graphs/eval.gif", writer='pillow', fps=1)
