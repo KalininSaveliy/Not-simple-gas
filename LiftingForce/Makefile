@@ -1,3 +1,12 @@
+# RM
+ifeq ($(OS),Windows_NT)
+	RM = del /Q
+	RMDIR = rmdir /S /Q
+else
+	RM = rm -f
+	RMDIR = rm -rf
+endif
+
 # Python
 PYTHON = .\.venv\Scripts\python.exe
 
@@ -6,13 +15,15 @@ CXX = g++
 CXXFLAGS = -fdiagnostics-color=always\
 		   -Wall\
 		   -g\
+		   -fopenmp\
 		   -std=c++23
 
 TARGET = main.exe
 
 CONFIG_FOLDER = config/
-CONFIG_MAIN  = $(CONFIG_FOLDER)main_Cpp.txt
-CONFIG_DEBUG = $(CONFIG_FOLDER)debug_Cpp.txt
+CONFIG_MAIN = $(CONFIG_FOLDER)/main.json
+CONFIG_CPP_MAIN  = $(CONFIG_FOLDER)main_Cpp.txt
+CONFIG_CPP_DEBUG = $(CONFIG_FOLDER)debug_Cpp.txt
 
 SRCS = main.cpp
 OBJS = $(SRCS:.cpp=.o)
@@ -21,16 +32,19 @@ OBJS = $(SRCS:.cpp=.o)
 all: $(TARGET) run
 
 gif:
-	PYTHON .\make_graph\gif_flat.py
+	$(PYTHON) .\make_graph\gif_flat.py
 
-build: $(TARGET)
-	PYTHON .\config\cfg.py
+build: $(TARGET) $(CONFIG_CPP_MAIN) ;
+
+$(CONFIG_CPP_MAIN): $(CONFIG_MAIN)
+	$(PYTHON) .\config\cfg.py
 
 run: $(TARGET)
-	$(TARGET) $(CONFIG_MAIN)
+	$(TARGET) $(CONFIG_CPP_MAIN)
+	$(MAKE) gif
 
 rundebug: $(TARGET)
-	$(TARGET) $(CONFIG_DEBUG)
+	$(TARGET) $(CONFIG_CPP_DEBUG)
 
 $(TARGET): $(OBJS)
 	$(CXX) $(CXXFLAGS) $(OBJS) -o $(TARGET)
@@ -40,12 +54,9 @@ $(TARGET): $(OBJS)
 
 # .PHONY: clean
 clean:
-	del $(OBJS)
-	del $(TARGET)
+	$(RM) $(OBJS)
+	$(RM) $(TARGET)
 
 cleandata:
-	del .\data\main\*
-	del .\data\debug\*
-
-# varr:
-# 	gnuplot -c make_graph/gif_flat.gp @.\config\tmp.txt 
+	$(RM) data\main\*
+	$(RM) data/debug/*
