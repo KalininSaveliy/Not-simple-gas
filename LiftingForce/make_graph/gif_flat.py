@@ -70,10 +70,11 @@ def update(frame_ind):
     # color bar (should be one for all pictures)
     if frame_ind == 0:
         cbar = fig.colorbar(mesh, ax=ax)
-        cbar.set_label('Value')
-    t = cfg.cfg["real_plate_len"] * cfg.cfg["Knudsen"] / 290  # seconds
+        cbar.set_label("n / n0")
     it = frame_ind * cfg.cfg["s_t"]
-    ax.set_title(str(it) + " (" + str(round(t * it * 1000, 1)) + "ms)")
+    time = round(it * cfg.cfg["real_plate_len"] * cfg.cfg["Knudsen"] / 290 * 1000, 1)  # miliSeconds
+    temperature = "T1/T0=" +  str(cfg.cfg["T1"]) + ", T2/T0=" + str(cfg.cfg["T2"])
+    ax.set_title(str(it) + " (" + str(time) + "ms, " + temperature + ")")
 
 ani = FuncAnimation(fig=fig, func=update, frames=data.length, interval=1000, repeat=False, init_func=lambda : None)
 ani.save("graphs/eval.gif", writer='pillow', fps=1)
