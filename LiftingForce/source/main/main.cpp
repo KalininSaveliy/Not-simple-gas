@@ -5,7 +5,9 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <omp.h>
 // #include <filesystem>
+#include "cnpy.h"
 
 
 
@@ -13,10 +15,10 @@
 bool isDebug;
 std::string save_folder;
 
-int n_time;      // число итераций по времени
-int save_time;   // период сохранений
-int n_x, n_y;    // размер секти по координате
-int n_v;         // размер сетки по скоростям
+size_t n_time;      // число итераций по времени
+size_t save_time;   // период сохранений
+size_t n_x, n_y;    // размер секти по координате
+size_t n_v;         // размер сетки по скоростям
 double Knudsen;  // число Кнудсена
 double Mach;     // число Маха (v0 / sqrt(kT/m))
 double T1;       // температура пластины сверху относительная
@@ -44,8 +46,8 @@ double real_plate_len;  // длина пластины в метрах
 // config value end
 
 // extra value
-int plate_beg_i, plate_end_i;  // исключая конец
-int plate_j;  // координата пластины по Y (пластина находится между plate_j и plate_j - 1)
+size_t plate_beg_i, plate_end_i;  // исключая конец
+size_t plate_j;  // координата пластины по Y (пластина находится между plate_j и plate_j - 1)
 double h;  // шаг по координатной сетке
 double dv;  // шаг по скоростной сетке
 double tau;  // шаг по временной сетке
@@ -53,14 +55,14 @@ double denom_up, denom_down;  // denominator(T)
 // extra value end
 
 // return coord x in metre
-double real_x(int i) {
-    return (i - plate_beg_i + 0.5) * h * Knudsen * real_plate_len;
+double real_x(size_t i) {
+    return (0.5 + i - plate_beg_i) * h * Knudsen * real_plate_len;
 }
-double real_y(int j) {
-    return (j - plate_j + 0.5) * h * Knudsen * real_plate_len;
+double real_y(size_t j) {
+    return (0.5 + j - plate_j) * h * Knudsen * real_plate_len;
 }
-double speed(int i) {
-    return (i - n_v / 2) * dv;
+double speed(size_t i) {
+    return (i - n_v / 2.0) * dv;
 }
 
 double Maxwell2(double vx, double vy, double v0_x, double v0_y, double n=1.0, double temp=1.0) {
@@ -71,7 +73,7 @@ double Maxwell2(double vx, double vy, double v0_x, double v0_y, double n=1.0, do
 double denominator(double T) {
     double total = 0;
     double v;
-    for (int ii = n_v / 2 + 1; ii < n_v - 1; ++ii) {
+    for (size_t ii = n_v / 2 + 1; ii < n_v - 1; ++ii) {
         v = speed(ii);
         total += v * std::exp(-v * v / (2 * T));
     }
@@ -79,22 +81,22 @@ double denominator(double T) {
 }
 
 // retrun 1dim index in distribution array
-int idx(int x, int y, int vx, int vy) {
+int idx(size_t x, size_t y, size_t vx, size_t vy) {
     return x + y * n_x + vx * (n_x * n_y) + vy * (n_x * n_y * n_v);
 }
 
 void initDistribution(double* f) {
-    double n_0, n_bound;
-    for (int ii = 0; ii < n_v; ++ii) {
+    double n_bound;
+    for (size_t ii = 0; ii < n_v; ++ii) {
         double vx = speed(ii);
-        for (int jj = 0; jj < n_v; ++jj) {
+        for (size_t jj = 0; jj < n_v; ++jj) {
             double vy = speed(jj);
-            n_0 = Maxwell2(vx, vy, 0.0, 0.0);
+            // n_0 = Maxwell2(vx, vy, 0.0, 0.0);
             n_bound = Maxwell2(vx, vy, Mach, 0.0);
-            for (int j = 0; j < n_y; ++j) {
+            for (size_t j = 0; j < n_y; ++j) {
                 f[idx(0, j, ii, jj)] = n_bound;
-                for (int i = 1; i < n_x; ++i) {
-                    f[idx(i, j, ii, jj)] = n_0;
+                for (size_t i = 1; i < n_x; ++i) {
+                    f[idx(i, j, ii, jj)] = n_bound;
                 }
             }
         }
@@ -102,20 +104,21 @@ void initDistribution(double* f) {
 }
 
 void make_iteration_x(double* f_old, double* f_new) {
-    double g;
-    for (int ii = 0; ii < n_v; ++ii) {
-        g = speed(ii) * tau / h;
-        for (int jj = 0; jj < n_v; ++jj) {
-            for (int j = 0; j < n_y; ++j) {
+    // double g;
+    #pragma omp parallel for
+    for (size_t ii = 0; ii < n_v; ++ii) {
+        double g = speed(ii) * tau / h;
+        for (size_t jj = 0; jj < n_v; ++jj) {
+            for (size_t j = 0; j < n_y; ++j) {
                 f_new[idx(0, j, ii, jj)] = f_old[idx(0, j, ii, jj)];  // const value
                 if (g > 0) {
-                    for (int i = 1; i < n_x; ++i) {
+                    for (size_t i = 1; i < n_x; ++i) {
                         f_new[idx(i, j, ii, jj)] = f_old[idx(i, j, ii, jj)] - g * (f_old[idx(i,   j, ii, jj)] -
                                                                                    f_old[idx(i-1, j, ii, jj)]);
                     }
                 } else {
                     f_new[idx(n_x - 1, j, ii, jj)] = f_old[idx(n_x - 1, j, ii, jj)];
-                    for (int i = 1; i < n_x - 1; ++i) {
+                    for (size_t i = 1; i < n_x - 1; ++i) {
                         f_new[idx(i, j, ii, jj)] = f_old[idx(i, j, ii, jj)] - g * (f_old[idx(i+1, j, ii, jj)] -
                                                                                    f_old[idx(i,   j, ii, jj)]);
                     }
@@ -126,25 +129,26 @@ void make_iteration_x(double* f_old, double* f_new) {
 }
 
 void make_iteration_y(double* f_old, double* f_new) {
-    double g;
-    for (int jj = 0; jj < n_v; ++jj) {
-        g = speed(jj) * tau / h;
-        for (int ii = 0; ii < n_v; ++ii) {
-            for (int j = 0; j < n_y - 1; ++j) {
+    // double g;
+    #pragma omp parallel for
+    for (size_t jj = 0; jj < n_v; ++jj) {
+        double g = speed(jj) * tau / h;
+        for (size_t ii = 0; ii < n_v; ++ii) {
+            for (size_t j = 0; j < n_y - 1; ++j) {
                 f_new[idx(0, j, ii, jj)] = f_old[idx(0, j, ii, jj)];  // const value
             }
-            for (int i = 1; i < n_x; ++i) {
+            for (size_t i = 1; i < n_x; ++i) {
                 if (g > 0) {
                     f_new[idx(i, 0, ii, jj)] = f_old[idx(i, 0, ii, jj)];
-                    for (int j = 1; j < n_y; ++j) {
+                    for (size_t j = 1; j < n_y; ++j) {
                         f_new[idx(i, j, ii, jj)] = f_old[idx(i, j, ii, jj)] - g * (f_old[idx(i, j,   ii, jj)] -
                                                                                    f_old[idx(i, j-1, ii, jj)]);
                     }
                 } else {
                     f_new[idx(i, n_y - 1, ii, jj)] = f_old[idx(i, n_y - 1, ii, jj)];
-                    for (int j = 0; j < n_y - 1; ++j) {
+                    for (size_t j = 0; j < n_y - 1; ++j) {
                         f_new[idx(i, j, ii, jj)] = f_old[idx(i, j, ii, jj)] - g * (f_old[idx(i, j+1, ii, jj)] -
-                                                                                   f_old[idx(i, j, ii, jj)]);
+                                                                                   f_old[idx(i, j,   ii, jj)]);
                     }
                 }
             }
@@ -153,26 +157,32 @@ void make_iteration_y(double* f_old, double* f_new) {
     // Diffusion reflection
     double nom_up, nom_down;  // up - above plate, down - below plate
     double v_y;
-    for (int i = plate_beg_i; i < plate_end_i; ++i) {
-        for (int ii = 0; ii < n_v; ++ii) {
+    double liftForce = 0.0;
+    for (size_t i = plate_beg_i; i < plate_end_i; ++i) {
+        for (size_t ii = 0; ii < n_v; ++ii) {
             nom_down = 0;
             nom_up = 0;
-            for (int jj = 0; jj < n_v; ++jj) {
+            for (size_t jj = 0; jj < n_v; ++jj) {
                 v_y = speed(jj);
                 if (v_y > 0)
                     nom_down += v_y * f_old[idx(i, plate_j - 1, ii, jj)];
                 else
                     nom_up   -= v_y * f_old[idx(i, plate_j, ii, jj)];  // (v_y <= 0) => ( -= )
             }
-            for (int jj = 0; jj < n_v; ++jj) {
+            liftForce += nom_down - nom_up;  // поток, для получения силы надо *2 / tau
+            for (size_t jj = 0; jj < n_v; ++jj) {
                 v_y = speed(jj);
                 if (v_y > 0)
                     f_new[idx(i, plate_j,     ii, jj)] = nom_up   / denom_up   * std::exp(-v_y * v_y / (2 * T1));
-                else
+                else if (v_y < 0)
                     f_new[idx(i, plate_j - 1, ii, jj)] = nom_down / denom_down * std::exp(-v_y * v_y / (2 * T2));
             }
         }
     }
+    std::ofstream fout("data/main/Lift.txt", std::ios_base::app);
+    if (fout.is_open())
+        fout << liftForce << '\n';
+    fout.close();
 }
 
 void make_iteration(double* f_old, double* f_new) {
@@ -185,6 +195,7 @@ void make_iteration(double* f_old, double* f_new) {
 bool load_config(const std::string& config_name) {
     bool isLoaded = false;
     std::ifstream fin;
+    std::cout << "I'm here\n";
     fin.open(config_name);
     if (fin.is_open()) {
         fin >> n_time
@@ -240,8 +251,8 @@ bool save_grid(const std::string& folder) {
     // std::ofstream fout(folder + "grid.csv", std::ios::out | std::ios::trunc);
     if (fout.is_open()) {
         fout << "x,y\n";
-        int n = std::max(n_x, n_y);
-        for (int i = 0; i < n; ++i) {
+        size_t n = std::max(n_x, n_y);
+        for (size_t i = 0; i < n; ++i) {
             if (i < n_x) {fout << real_x(i);}
             // (i < n_x) ? (fout << real_x(i)) : (fout << " ");
             fout << ',';
@@ -265,40 +276,43 @@ bool save_grid(const std::string& folder) {
  * @return Void
  */
 void save(double* f, std::string& filename, bool saveAll=false) {
-    filename += saveAll ? ".txt" : ".csv";
-    std::ofstream fout;
-    fout.open(filename);
-    if (fout.is_open()) {
-        if (saveAll) {
-            fout << "# sum(f(vx,vy)) for each (x, y) point in relative units\n";
-            fout << "# next line is the concentration n = sum of f(vx, vy) in point (x,y)\n";
-            fout << n_v << ' ' << dv << ' ' << v_cut << "  # n_v, dv and max_velocity\n\n";
-        }
-        double n, sum;
-        for (int j = 0; j < n_y; ++j) {
-            for (int i = 0; i < n_x; ++i) {
-                sum = 0.0;
-                if (saveAll) {fout << '\n';}
-                for (int ii = 0; ii < n_v; ++ii) {
-                    for (int jj = 0; jj < n_v; ++jj) {
-                        n = f[idx(i, j, ii, jj)];
-                        sum += n;
-                        if (saveAll) {fout << n << ' ';}
-                    }
-                    if (saveAll) {fout << '\n';}
-                }
-                fout << sum * dv * dv;  // \int f(vx, vy) dvx dvy
-                if (i != n_x - 1) {fout << ',';}
-            }
-            if (!saveAll) {fout << '\n';}
-        }
-    } else {
-        std::cout << "Error: Could not save distribution to file " << std::quoted(filename) << "\n";
-    }
-    fout.close();
+    std::cout << "pre_save\n";
+    cnpy::npy_save(filename + ".npy", f, {n_v, n_v, n_y, n_x}, "w");
+    std::cout << "post_save\n\n";
+    // filename += saveAll ? ".txt" : ".csv";
+    // std::ofstream fout;
+    // fout.open(filename);
+    // if (fout.is_open()) {
+    //     if (saveAll) {
+    //         fout << "# sum(f(vx,vy)) for each (x, y) point in relative units\n";
+    //         fout << "# next line is the concentration n = sum of f(vx, vy) in point (x,y)\n";
+    //         fout << n_v << ' ' << dv << ' ' << v_cut << "  # n_v, dv and max_velocity\n\n";
+    //     }
+    //     double n, sum;
+    //     for (int j = 0; j < n_y; ++j) {
+    //         for (int i = 0; i < n_x; ++i) {
+    //             sum = 0.0;
+    //             if (saveAll) {fout << '\n';}
+    //             for (int ii = 0; ii < n_v; ++ii) {
+    //                 for (int jj = 0; jj < n_v; ++jj) {
+    //                     n = f[idx(i, j, ii, jj)];
+    //                     sum += n;
+    //                     if (saveAll) {fout << n << ' ';}
+    //                 }
+    //                 if (saveAll) {fout << '\n';}
+    //             }
+    //             fout << sum * dv * dv;  // \int f(vx, vy) dvx dvy
+    //             if (i != n_x - 1) {fout << ',';}
+    //         }
+    //         if (!saveAll) {fout << '\n';}
+    //     }
+    // } else {
+    //     std::cout << "Error: Could not save distribution to file " << std::quoted(filename) << "\n";
+    // }
+    // fout.close();
 }
 
-bool make_simulation(std::string& config_name) {
+bool make_simulation(const std::string& config_name) {
     if (!load_config(config_name))
         return false;
 
@@ -307,22 +321,24 @@ bool make_simulation(std::string& config_name) {
     if (!save_grid(folder))
         return false;
     
-    double* new_distribution = new double[n_x * n_y * n_v * n_v];
-    double* distribution     = new double[n_x * n_y * n_v * n_v];
+    double* distribute_buffer = new double[n_x * n_y * n_v * n_v];
+    double* distribution      = new double[n_x * n_y * n_v * n_v];
     initDistribution(distribution);
 
     std::string file = folder + "0";  // TODO: maybe should add name of file to config
     save(distribution, file, isDebug);  // TODO: add time to save function
 
-    for (int t_i = 1; t_i <= n_time; ++t_i) {
-        make_iteration(distribution, new_distribution);
+    for (size_t t_i = 1; t_i <= n_time; ++t_i) {
+        make_iteration(distribution, distribute_buffer);
         if (t_i % save_time == 0) {
             file = folder + std::to_string(t_i);
-            save(new_distribution, file, isDebug);
+            save(distribution, file, isDebug);
             std::cout << "Iter " << t_i << " / " << n_time << " was done.\n";
         }
-        std::swap(distribution, new_distribution);
+        // std::swap(distribution, distribute_buffer);
     }
+    delete[] distribution;
+    delete[] distribute_buffer;
     return true;
 }
 

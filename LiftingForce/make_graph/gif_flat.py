@@ -1,5 +1,6 @@
 import pandas as pd
 import xarray as xr
+import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.animation import FuncAnimation
 from config.cfg import Config, path_list
@@ -15,7 +16,7 @@ class Data:
         self.find_min_max_value()
 
     def search_data(self)->None:
-        self.data_list = [self.data_dir + str(n) + ".csv" for n in range(0, cfg.cfg["n_t"], cfg.cfg["s_t"])]
+        self.data_list = [self.data_dir + str(n) + ".npy" for n in range(0, cfg.cfg["n_t"], cfg.cfg["s_t"])]
         self.length = len(self.data_list)
         print(self.data_list)
         self.grid_file = self.data_dir + "grid.csv"
@@ -28,20 +29,24 @@ class Data:
             dim_coords = dim_coords[dim_coords.notna()]
             self.coords[dim] = dim_coords
     
-    def read_table(self, i:int)->pd.DataFrame:
-        return pd.read_csv(self.data_list[i], sep = self.sep, header=self.header)
+    def read_table(self, i:int)->np.array:
+        arr = np.load(self.data_list[i])
+        arr = np.sum(arr, axis=(0, 1))
+        return arr
 
     def find_min_max_value(self)->None:
         self.data_min = +10e10  # TODO: rename variables
         self.data_max = -10e10
         for i in range(len(self.data_list)):
-            data = self.read_table(i).to_numpy().reshape(-1)
+            data = self.read_table(i).reshape(-1)
             self.data_min = min(self.data_min, data.min())
             self.data_max = max(self.data_max, data.max())
 
     def read(self, i:int)->xr.DataArray:
-        df = self.read_table(i)
-        data = xr.DataArray(df, dims=("y", "x"), coords=self.coords)
+        ar = self.read_table(i)
+        data = xr.DataArray(ar, dims=("y", "x"), coords=self.coords)
+        if i == 0:
+            print(data)
         return data
 
 
