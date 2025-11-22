@@ -4,7 +4,7 @@
             "name": "Launch main",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}\\main.exe",
+            "program": "${workspaceFolder}\\build\\main.exe",
             "args": ["config\\main_Cpp.txt"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

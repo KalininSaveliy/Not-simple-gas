@@ -1,21 +1,21 @@
 {
     "n_t" : 300,
-    "s_t" : 5,
+    "s_t" : 10,
 
-    "n_x" : 40,
-    "n_y" : 20,
+    "n_x" : 50,
+    "n_y" : 40,
 
     "comment_n_v" : "(n_v div 2) / v_cut <= 1",
-    "n_v" : 11,
+    "n_v" : 19,
     "v_cut" : 5.0,
 
     "alpha" : 0.4,
     "beta"  : 0.2,
 
-    "Knudsen" : 0.5,
+    "Knudsen" : 0.05,
     "Mach"  : 0.5,
     "T1" : 1.0,
-    "T2" : 2.0,
+    "T2" : 1.5,
 
     "comment_real_plate_len" : "metre",
     "real_plate_len" : 1.4,

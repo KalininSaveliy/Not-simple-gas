@@ -62,7 +62,7 @@ double real_y(size_t j) {
     return (0.5 + j - plate_j) * h * Knudsen * real_plate_len;
 }
 double speed(size_t i) {
-    return (i - n_v / 2.0) * dv;
+    return dv * i - v_cut;
 }
 
 double Maxwell2(double vx, double vy, double v0_x, double v0_y, double n=1.0, double temp=1.0) {
@@ -224,7 +224,7 @@ bool load_config(const std::string& config_name) {
         plate_end_i = n_alpha + n_beta;
         plate_j     = n_y / 2;
         h           = plate_len / n_beta;
-        dv          = v_cut / (n_v / 2);
+        dv          = 2.0 * v_cut / (n_v - 1);
         tau         = h / v_cut;
         denom_up    = denominator(T1);
         denom_down  = denominator(T2);
