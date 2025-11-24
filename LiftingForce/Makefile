@@ -24,10 +24,12 @@ CXX = g++
 CXXFLAGS = -fdiagnostics-color=always\
 		   -Wall\
 		   -g\
-		   -fopenmp\
 		   -O2\
 		   -Wextra\
-		   -std=c++23
+		   -std=c++23\
+		   -Wconversion\
+		   -Wshadow\
+		   -fopenmp
 
 # Pathes
 SRC_DIR = source

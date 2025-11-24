@@ -7,7 +7,7 @@
 #include <fstream>
 #include <omp.h>
 // #include <filesystem>
-#include "cnpy.h"
+#include "cnpy.hpp"
 
 
 
@@ -81,7 +81,7 @@ double denominator(double T) {
 }
 
 // retrun 1dim index in distribution array
-int idx(size_t x, size_t y, size_t vx, size_t vy) {
+size_t idx(size_t x, size_t y, size_t vx, size_t vy) {
     return x + y * n_x + vx * (n_x * n_y) + vy * (n_x * n_y * n_v);
 }
 
@@ -216,8 +216,8 @@ bool load_config(const std::string& config_name) {
 
         double plate_len = 1 / Knudsen;  // длина пластины в длинах свободного пробега
         // TODO: add check for alpha, beta, n_x value
-        int n_alpha = std::floor(n_x * alpha);  // целое число ячеек сетки для области до пластины
-        int n_beta  = std::floor(n_x * beta);    // целое число ячеек сетки для пластины
+        size_t n_alpha = static_cast<size_t>(std::floor(n_x * alpha));  // целое число ячеек сетки для области до пластины
+        size_t n_beta  = static_cast<size_t>(std::floor(n_x * beta));    // целое число ячеек сетки для пластины
         // int n_gamma = n_x - n_alpha - n_beta;   // целое число ячеек сетки для области после пластины
 
         plate_beg_i = n_alpha;
@@ -229,14 +229,15 @@ bool load_config(const std::string& config_name) {
         denom_up    = denominator(T1);
         denom_down  = denominator(T2);
 
-        if (isDebug) {
-            std::cout
-                << n_x << ' ' << n_y << '\n' << n_v << ' ' << v_cut << '\n'
-                << alpha << ' ' << beta << '\n' << Knudsen << ' ' << Mach << '\n'
-                << T1 << ' ' << T2 << ' ' << real_plate_len << '\n'
-                << plate_beg_i << ' ' << plate_end_i << ' ' << plate_j << '\n'
-                << h << ' ' << dv << ' ' << n_time << '\n';
-        }
+        
+        std::cout
+            << n_x << ' ' << n_y << '\n'
+            << n_v << ' ' << v_cut << '\n'
+            << alpha << ' ' << beta << '\n'
+            << Knudsen << ' ' << Mach << '\n'
+            << T1 << ' ' << T2 << ' ' << real_plate_len << '\n'
+            << plate_beg_i << ' ' << plate_end_i << ' ' << plate_j << '\n'
+            << h << ' ' << dv << ' ' << n_time << '\n';
         isLoaded = true;
         fin.close();
     } else {
@@ -277,39 +278,8 @@ bool save_grid(const std::string& folder) {
  */
 void save(double* f, std::string& filename, bool saveAll=false) {
     std::cout << "pre_save\n";
-    cnpy::npy_save(filename + ".npy", f, {n_v, n_v, n_y, n_x}, "w");
+    npy::save_npy(filename + ".npy", f, {n_v, n_v, n_y, n_x}, false);
     std::cout << "post_save\n\n";
-    // filename += saveAll ? ".txt" : ".csv";
-    // std::ofstream fout;
-    // fout.open(filename);
-    // if (fout.is_open()) {
-    //     if (saveAll) {
-    //         fout << "# sum(f(vx,vy)) for each (x, y) point in relative units\n";
-    //         fout << "# next line is the concentration n = sum of f(vx, vy) in point (x,y)\n";
-    //         fout << n_v << ' ' << dv << ' ' << v_cut << "  # n_v, dv and max_velocity\n\n";
-    //     }
-    //     double n, sum;
-    //     for (int j = 0; j < n_y; ++j) {
-    //         for (int i = 0; i < n_x; ++i) {
-    //             sum = 0.0;
-    //             if (saveAll) {fout << '\n';}
-    //             for (int ii = 0; ii < n_v; ++ii) {
-    //                 for (int jj = 0; jj < n_v; ++jj) {
-    //                     n = f[idx(i, j, ii, jj)];
-    //                     sum += n;
-    //                     if (saveAll) {fout << n << ' ';}
-    //                 }
-    //                 if (saveAll) {fout << '\n';}
-    //             }
-    //             fout << sum * dv * dv;  // \int f(vx, vy) dvx dvy
-    //             if (i != n_x - 1) {fout << ',';}
-    //         }
-    //         if (!saveAll) {fout << '\n';}
-    //     }
-    // } else {
-    //     std::cout << "Error: Could not save distribution to file " << std::quoted(filename) << "\n";
-    // }
-    // fout.close();
 }
 
 bool make_simulation(const std::string& config_name) {
@@ -323,6 +293,8 @@ bool make_simulation(const std::string& config_name) {
     
     double* distribute_buffer = new double[n_x * n_y * n_v * n_v];
     double* distribution      = new double[n_x * n_y * n_v * n_v];
+    if ((distribute_buffer == nullptr) || (distribution == nullptr))
+        return false;
     initDistribution(distribution);
 
     std::string file = folder + "0";  // TODO: maybe should add name of file to config
