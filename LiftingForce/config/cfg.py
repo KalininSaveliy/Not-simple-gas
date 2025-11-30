@@ -1,4 +1,6 @@
 import json
+from collections.abc import Mapping
+from types import MappingProxyType
 import os
 from glob import glob
 
@@ -6,32 +8,60 @@ from glob import glob
 def path_list(folder:str, pattern:str)->list:
     return glob(os.path.join(folder, pattern))
 
-class Config:
+class Config(Mapping):
     def __init__(self, filename: str):
-        self.filename = filename
+        self._filename = filename
         with open(filename, "r") as file:
-            self.cfg = json.load(file)
+            self._data = MappingProxyType(json.load(file))
+
+    def __getitem__(self, key):
+        return self._data[key]
+
+    def __getattr__(self, name):
+            return self._data[name]
+
+    def __iter__(self):
+        return iter(self._data)
+
+    def __len__(self):
+        return len(self._data)
+
+    # # ---- запрет изменения ----
+    # def __setattr__(self, name, value):
+    #     if name.startswith("_"):
+    #         super().__setattr__(name, value)
+    #     else:
+    #         raise TypeError("Config is read-only")
+
+    # def __setitem__(self, key, value):
+    #     raise TypeError("Config is read-only")
+
+    # def __delattr__(self, name):
+    #     raise TypeError("Config is read-only")
+
+    # def __delitem__(self, key):
+    #     raise TypeError("Config is read-only")
 
     def make_cpp_config(self):
         data = [
-            self.cfg["n_t"],
-            self.cfg["s_t"],
-            self.cfg["n_x"],
-            self.cfg["n_y"],
-            self.cfg["n_v"],
-            self.cfg["v_cut"],
-            self.cfg["alpha"],
-            self.cfg["beta"],
-            self.cfg["Knudsen"],
-            self.cfg["Mach"],
-            self.cfg["T1"],
-            self.cfg["T2"],
-            self.cfg["real_plate_len"],
-            int(self.cfg["debug"]),
-            self.cfg["save_folder"]
+            self.n_t,
+            self.s_t,
+            self.n_x,
+            self.n_y,
+            self.n_v,
+            self.v_cut,
+            self.alpha,
+            self.beta,
+            self.Knudsen,
+            self.Mach,
+            self.T1,
+            self.T2,
+            self.real_plate_len,
+            int(self.debug),
+            self.save_folder
         ]
-        c_cfg_name = self.filename.split(".")[0] + "_Cpp.txt"
-        with open(c_cfg_name, "w") as file:
+        c_cfg_filename = self._filename.split(".")[0] + "_Cpp.txt"
+        with open(c_cfg_filename, "w") as file:
             for el in data:
                 file.write(str(el) + '\n')
 

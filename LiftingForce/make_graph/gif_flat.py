@@ -8,15 +8,14 @@ from config.cfg import Config, path_list
 
 class Data:
     def __init__(self, cfg:Config):
-        self.sep = ','
-        self.header = None
-        self.data_dir = "data\\" + cfg.cfg["save_folder"] + "\\"
+        self.data_dir = "data\\" + cfg["save_folder"] + "\\"
+        self.cfg = cfg
         self.search_data()
         self.read_coords()
         self.find_min_max_value()
 
     def search_data(self)->None:
-        self.data_list = [self.data_dir + str(n) + ".npy" for n in range(0, cfg.cfg["n_t"], cfg.cfg["s_t"])]
+        self.data_list = [self.data_dir + str(n) + ".npy" for n in range(0, self.cfg["n_t"], self.cfg["s_t"])]
         self.length = len(self.data_list)
         print(self.data_list)
         self.grid_file = self.data_dir + "grid.csv"
@@ -53,7 +52,7 @@ class Data:
 cfg_name = "main"  # TODO: make it not hard const
 
 cfg = Config("config\\" + cfg_name + ".json")
-plate = [[0, cfg.cfg["real_plate_len"]], [0, 0]]
+plate = [[0, cfg["real_plate_len"]], [0, 0]]
 data = Data(cfg)
 
 cbar = None
@@ -76,9 +75,9 @@ def update(frame_ind):
     if frame_ind == 0:
         cbar = fig.colorbar(mesh, ax=ax)
         cbar.set_label("n / n0")
-    it = frame_ind * cfg.cfg["s_t"]
-    time = round(it * cfg.cfg["real_plate_len"] * cfg.cfg["Knudsen"] / 290 * 1000, 1)  # miliSeconds
-    temperature = "T1/T0=" +  str(cfg.cfg["T1"]) + ", T2/T0=" + str(cfg.cfg["T2"])
+    it = frame_ind * cfg["s_t"]
+    time = round(it * cfg["real_plate_len"] * cfg["Knudsen"] / 290 * 1000, 1)  # miliSeconds
+    temperature = "T1/T0=" +  str(cfg["T1"]) + ", T2/T0=" + str(cfg["T2"])
     ax.set_title(str(it) + " (" + str(time) + "ms, " + temperature + ")")
 
 ani = FuncAnimation(fig=fig, func=update, frames=data.length, interval=1000, repeat=False, init_func=lambda : None)
