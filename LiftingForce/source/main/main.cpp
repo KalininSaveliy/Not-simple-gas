@@ -248,16 +248,16 @@ bool load_config(const std::string& config_name) {
 
 bool save_grid(const std::string& folder) {
     bool isSaved = false;
-    std::ofstream fout(folder + "grid.csv");
-    // std::ofstream fout(folder + "grid.csv", std::ios::out | std::ios::trunc);
+    std::ofstream fout(folder + "coords.csv");
     if (fout.is_open()) {
-        fout << "x,y\n";
-        size_t n = std::max(n_x, n_y);
+        fout << "x,y,v\n";
+        size_t n = std::max(std::max(n_x, n_y), n_v);
         for (size_t i = 0; i < n; ++i) {
             if (i < n_x) {fout << real_x(i);}
-            // (i < n_x) ? (fout << real_x(i)) : (fout << " ");
             fout << ',';
             if (i < n_y) {fout << real_y(i);}
+            fout << ',';
+            if (i < n_v) {fout << speed(i);}
             fout << '\n';
         }
         fout.close();
@@ -272,21 +272,17 @@ bool save_grid(const std::string& folder) {
  * 
  * @param f is a distribution to save
  * @param filename name of file to save without extension
- * @param saveAll if true save all distribution. This work slower.
- *                if false save only concentration in each point (x, y). This work faster.
  * @return Void
  */
-void save(double* f, std::string& filename, bool saveAll=false) {
-    std::cout << "pre_save\n";
+void save(double* f, std::string& filename) {
     npy::save_npy(filename + ".npy", f, {n_v, n_v, n_y, n_x}, false);
-    std::cout << "post_save\n\n";
 }
 
 bool make_simulation(const std::string& config_name) {
     if (!load_config(config_name))
         return false;
 
-    std::string folder = "./data/" + save_folder + '/';
+    std::string folder = save_folder;
     // std::filesystem::create_directories(folder);
     if (!save_grid(folder))
         return false;
@@ -298,13 +294,13 @@ bool make_simulation(const std::string& config_name) {
     initDistribution(distribution);
 
     std::string file = folder + "0";  // TODO: maybe should add name of file to config
-    save(distribution, file, isDebug);  // TODO: add time to save function
+    save(distribution, file);  // TODO: add time to save function
 
     for (size_t t_i = 1; t_i <= n_time; ++t_i) {
         make_iteration(distribution, distribute_buffer);
         if (t_i % save_time == 0) {
             file = folder + std::to_string(t_i);
-            save(distribution, file, isDebug);
+            save(distribution, file);
             std::cout << "Iter " << t_i << " / " << n_time << " was done.\n";
         }
         // std::swap(distribution, distribute_buffer);
