@@ -1,20 +1,18 @@
-import json
 from collections.abc import Mapping
 from types import MappingProxyType
-import os
-from glob import glob
+import argparse
+import json
 import numpy as np
 import pandas as pd
 
 
-def path_list(folder:str, pattern:str)->list:
-    return glob(os.path.join(folder, pattern))
-
-
 class Config(Mapping):
-    def __init__(self, filename: str):
-        self._filename = filename
-        with open(filename, "r") as file:
+    def __init__(self):
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--cfg", type=str, default="./config/main.json", help="config filename")
+        args = parser.parse_args()
+        self._filename = args.cfg
+        with open(self._filename, "r") as file:
             self._data = MappingProxyType(json.load(file))
         self.data_dir = "./data/" + self.save_folder + '/'
 
@@ -75,8 +73,8 @@ class Data():
     file_list: list[str]
     coords: dict[str, np.ndarray]
 
-    def __init__(self, cfg_filename: str):
-        self.cfg = Config(cfg_filename)
+    def __init__(self):
+        self.cfg = Config()
         self._set_file_list()
         self._set_coords()
     
@@ -107,7 +105,5 @@ class Data():
 
 
 if __name__ == "__main__":
-    cfg_list = path_list(os.path.dirname(__file__), "*.json")
-    for cfg_name in cfg_list:
-        cfg = Config(cfg_name)
-        cfg.make_cpp_config()
+    cfg = Config()
+    cfg.make_cpp_config()

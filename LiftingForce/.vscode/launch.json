@@ -1,11 +1,21 @@
 {
     "configurations": [
         {
+            "name": "Python Debugger: Current File with Arguments",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": "--cfg ./config/main.json"
+        },
+        {
             "name": "Launch main",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}\\build\\main.exe",
-            "args": ["config\\main_Cpp.txt"],
+            "args": [
+                "config\\main_Cpp.txt"
+            ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],

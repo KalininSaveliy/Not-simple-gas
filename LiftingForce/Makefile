@@ -44,33 +44,30 @@ INC_FLAGS = $(addprefix -I , $(INC_DIRS))
 
 # Config
 CONFIG_FOLDER = config/
-CONFIG_MAIN = $(CONFIG_FOLDER)/main.json
-CONFIG_CPP_MAIN  = $(CONFIG_FOLDER)main_Cpp.txt
-CONFIG_CPP_DEBUG = $(CONFIG_FOLDER)debug_Cpp.txt
+CONFIG = $(CONFIG_FOLDER)/main.json
+CONFIG_CPP  = $(CONFIG_FOLDER)main_Cpp.txt
+ADD_CONFIG = --cfg $(CONFIG)
 
 
 all: $(TARGET) run
 
 gif:
-	$(PYTHON) .\make_graph\gif_flat.py
+	$(PYTHON) .\make_graph\gif_flat.py $(ADD_CONFIG)
 
 
-$(CONFIG_CPP_MAIN): $(CONFIG_MAIN)
-	$(PYTHON) .\config\cfg.py
+$(CONFIG_CPP): $(CONFIG)
+	$(PYTHON) .\config\cfg.py $(ADD_CONFIG)
 
-run: $(TARGET)
-	$(TARGET) $(CONFIG_CPP_MAIN)
+run: $(TARGET) $(CONFIG_CPP)
+	$(TARGET) $(CONFIG_CPP)
 	$(MAKE) gif
-
-rundebug: $(TARGET)
-	$(TARGET) $(CONFIG_CPP_DEBUG)
 
 info: $(OBJS) $(SRCS)
 	@echo $(OBJS)
 	@echo $(SRCS)
 	@echo $(INC_DIRS)
 
-build: $(TARGET) $(CONFIG_CPP_MAIN) ;
+build: $(TARGET) $(CONFIG_CPP) ;
 
 $(TARGET): $(OBJS)
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(INC_FLAGS)

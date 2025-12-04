@@ -10,8 +10,7 @@ def read(data: Data, i:int)->xr.DataArray:
         return data
 
 
-cfg_name = "main"  # TODO: make it not hard const
-data = Data("config/" + cfg_name + ".json")
+data = Data()
 
 # find min and max for cbar
 data_min = +10e10
