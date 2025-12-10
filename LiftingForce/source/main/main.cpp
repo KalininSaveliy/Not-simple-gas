@@ -73,16 +73,16 @@ double Maxwell2(double vx, double vy, double v0_x, double v0_y, double n=1.0, do
 double denominator(double T) {
     double total = 0;
     double v;
-    for (size_t ii = n_v / 2 + 1; ii < n_v - 1; ++ii) {
+    for (size_t ii = n_v / 2 + 1; ii < n_v; ++ii) {
         v = speed(ii);
-        total += v * std::exp(-v * v / (2 * T));
+        total += v * std::exp(-v * v / (2.0 * T));
     }
     return total;
 }
 
 // retrun 1dim index in distribution array
-size_t idx(size_t x, size_t y, size_t vx, size_t vy) {
-    return x + y * n_x + vx * (n_x * n_y) + vy * (n_x * n_y * n_v);
+size_t idx(const size_t x, const size_t y, const size_t vx, const size_t vy) {
+    return x + n_x * (y + n_y * (vx + n_v * vy));
 }
 
 void initDistribution(double* f) {
@@ -104,14 +104,13 @@ void initDistribution(double* f) {
 }
 
 void make_iteration_x(double* f_old, double* f_new) {
-    // double g;
     #pragma omp parallel for
     for (size_t ii = 0; ii < n_v; ++ii) {
         double g = speed(ii) * tau / h;
         for (size_t jj = 0; jj < n_v; ++jj) {
             for (size_t j = 0; j < n_y; ++j) {
                 f_new[idx(0, j, ii, jj)] = f_old[idx(0, j, ii, jj)];  // const value
-                if (g > 0) {
+                if (g > 0.0) {
                     for (size_t i = 1; i < n_x; ++i) {
                         f_new[idx(i, j, ii, jj)] = f_old[idx(i, j, ii, jj)] - g * (f_old[idx(i,   j, ii, jj)] -
                                                                                    f_old[idx(i-1, j, ii, jj)]);
@@ -129,16 +128,15 @@ void make_iteration_x(double* f_old, double* f_new) {
 }
 
 void make_iteration_y(double* f_old, double* f_new) {
-    // double g;
     #pragma omp parallel for
     for (size_t jj = 0; jj < n_v; ++jj) {
         double g = speed(jj) * tau / h;
         for (size_t ii = 0; ii < n_v; ++ii) {
-            for (size_t j = 0; j < n_y - 1; ++j) {
+            for (size_t j = 0; j < n_y; ++j) {
                 f_new[idx(0, j, ii, jj)] = f_old[idx(0, j, ii, jj)];  // const value
             }
             for (size_t i = 1; i < n_x; ++i) {
-                if (g > 0) {
+                if (g > 0.0) {
                     f_new[idx(i, 0, ii, jj)] = f_old[idx(i, 0, ii, jj)];
                     for (size_t j = 1; j < n_y; ++j) {
                         f_new[idx(i, j, ii, jj)] = f_old[idx(i, j, ii, jj)] - g * (f_old[idx(i, j,   ii, jj)] -
@@ -160,8 +158,8 @@ void make_iteration_y(double* f_old, double* f_new) {
     double liftForce = 0.0;
     for (size_t i = plate_beg_i; i < plate_end_i; ++i) {
         for (size_t ii = 0; ii < n_v; ++ii) {
-            nom_down = 0;
-            nom_up = 0;
+            nom_down = 0.0;
+            nom_up = 0.0;
             for (size_t jj = 0; jj < n_v; ++jj) {
                 v_y = speed(jj);
                 if (v_y > 0)
@@ -172,10 +170,10 @@ void make_iteration_y(double* f_old, double* f_new) {
             liftForce += nom_down - nom_up;  // поток, для получения силы надо *2 / tau
             for (size_t jj = 0; jj < n_v; ++jj) {
                 v_y = speed(jj);
-                if (v_y > 0)
-                    f_new[idx(i, plate_j,     ii, jj)] = nom_up   / denom_up   * std::exp(-v_y * v_y / (2 * T1));
-                else if (v_y < 0)
-                    f_new[idx(i, plate_j - 1, ii, jj)] = nom_down / denom_down * std::exp(-v_y * v_y / (2 * T2));
+                if (v_y > 0.0)
+                    f_new[idx(i, plate_j,     ii, jj)] = nom_up   / denom_up   * std::exp(-v_y * v_y / (2.0 * T1));
+                else if (v_y < 0.0)
+                    f_new[idx(i, plate_j - 1, ii, jj)] = nom_down / denom_down * std::exp(-v_y * v_y / (2.0 * T2));
             }
         }
     }
